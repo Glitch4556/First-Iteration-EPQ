@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ECS.hpp" />
+    <ClInclude Include="input.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ECS.cpp" />

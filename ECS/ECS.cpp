@@ -4,12 +4,12 @@
 std::vector<std::unique_ptr<Behaviour>> Behaviour::objects;
 static std::vector<std::unique_ptr<Behaviour>> objQueue;
 
-void Behaviour::CreateObject(std::unique_ptr<Behaviour>& obj)
+void Behaviour::CreateObject(std::unique_ptr<Behaviour> obj)
 {
     objQueue.push_back(std::move(obj));
 }
 
-void RenderAll(sf::RenderWindow& window)
+void Behaviour::RenderAll(sf::RenderWindow& window)
 {
     window.clear(sf::Color::Black);
 	for (auto& object : Behaviour::objects)
@@ -19,7 +19,7 @@ void RenderAll(sf::RenderWindow& window)
 	window.display();
 }
 
-void UpdateAll(sf::RenderWindow& window)
+void Behaviour::UpdateAll(sf::RenderWindow& window)
 {
 	while (const std::optional event = window.pollEvent())
 	{
@@ -44,6 +44,7 @@ void UpdateAll(sf::RenderWindow& window)
 	{
 		object->Update(window);
 	}
+
 	// Moves objects in the queue to the list of scene objects and clears the queue
 	std::move(objQueue.begin(), objQueue.end(), std::back_inserter(Behaviour::objects));
 	objQueue.clear();
