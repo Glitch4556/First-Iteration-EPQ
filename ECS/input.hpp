@@ -1,16 +1,22 @@
 #pragma once
 #include <SFML/Window.hpp>
+#include <array>
 
 class Input
 {
 public:
-	static bool KeyPressed(sf::Keyboard::Key key)
-	{
-		return sf::Keyboard::isKeyPressed(key);
-	}
+    static bool MousePressedOnce(sf::Mouse::Button button);
+    static bool KeyPressedOnce(sf::Keyboard::Key key);
+    
+    static bool MouseHeld(sf::Mouse::Button button)
+    {
+        if (sf::Mouse::isButtonPressed(button))
+        {
+            return true;
+        }
+    }
 
-	static bool ButtonPressed(sf::Mouse::Button button)
-	{
-		return sf::Mouse::isButtonPressed(button);
-	}
+private:
+    static std::array<bool, sf::Mouse::ButtonCount> previousMouseState;
+    static std::array<bool, sf::Keyboard::KeyCount> previousKeyState;
 };

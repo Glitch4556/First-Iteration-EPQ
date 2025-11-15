@@ -2,34 +2,61 @@
 #include <SFML/Graphics.hpp>
 #include "../ECS/ECS.hpp"
 #include "../ECS/input.hpp"
+#include  <random>
 
-// Creation of movement class, with base class of component
+// Creates movement class
+float randFloat(int range1, int range2)
+{
+	std::random_device rd;   // seeding
+	std::mt19937 gen(rd());  // Mersenne Twister engine
+	std::uniform_int_distribution<> dist(range1,range2);
+	float randFloat = dist(gen);
+	return randFloat;
+}
 class Movement : public Component
 {
 public:
 	// Public empty variables of velocity and position initialised
 	sf::Vector2f velocity;
 	sf::Vector2f position;
-
-	// Overrides onUpdate function inherited from Component
-	void onUpdate() override
+	
+	void onUpdate(EngineContext& context) override
 	{
-		// Updates position vector by adding velocity vector
-		position = position + velocity;
+		// Updates pos by adding velocity to current pos
+		position = position + (velocity * context.deltaTime);
+		// Gets window size and converts it to Vector2f
+		sf::Vector2u size = context.window.getSize();
+		sf::Vector2f sizeF(static_cast<float>(size.x),static_cast<float>(size.y));
+		// Manages collision with border of window
+		if (position.x >= sizeF.x or position.x <= 0)
+		{
+			velocity = {-velocity.x,velocity.y};
+			position = position + (velocity * context.deltaTime);
+		}
+		else if (position.y >= sizeF.y or position.y <= 0)
+		{
+			velocity = {velocity.x,-velocity.y};
+			position = position + (velocity * context.deltaTime);
+		}
 	}
 };
 
-// Creation of Neutron class, with base class of Behaviour
+class CircleCollsion : public Behaviour
+{
+private:
+public:
+
+};
+
 class Neutron : public Behaviour
 {
 private:
-	// Creates an empty "CircleShape" called circle
-	// Creates "component", an empty ptr which can point to a movement object
+	// Initalises circle variable and component variable 
 	sf::CircleShape circle;
 	Movement* component;
 
 public:
-	// Function which takes in a vector of pos
+	// Neutron constructor which creates the neutron object
 	Neutron(sf::Vector2f pos)
 	{
 		// Fills in the empty information from variable "circle"
@@ -40,25 +67,26 @@ public:
 
 		// Adds and configures a Movement component
 		component = AddComponent<Movement>();
-		component->velocity = {6,7};
+		// Sets velocity and position components
+		sf::Vector2f randVector;
+		randVector.x = randFloat(-500, 500);
+		randVector.y = randFloat(-500, 500);
+		component->velocity = randVector;
 		component->position = pos;
 	}
-
-	// Overrides for the onUpdate and onRender functions inherited from Behaviour class
-	void onUpdate(sf::RenderWindow& window) override
+	// Updates the components every time main update function called
+	void onUpdate(EngineContext& context) override
 	{
 		// Syncs circle’s position with its Movement component’s position
 		circle.setPosition(component->position);
 	}
-
-	void onRender(sf::RenderWindow& window) override
+	// Renders the updated object
+	void onRender(EngineContext& context) override
 	{
-		// Draws the circle to the window
-		window.draw(circle);
+		context.window.draw(circle);
 	}
 };
-
-// Same as Neutron, except without movement
+// Same as neutron but without movement
 class Nucleus : public Behaviour
 {
 private:
@@ -69,25 +97,23 @@ public:
 	// Constructor that sets up circle position and visuals
 	Nucleus(sf::Vector2f pos)
 	{
-		circle = sf::CircleShape(5.f);
+		circle = sf::CircleShape(10.f);
 		circle.setFillColor(sf::Color(0, 0, 255));
 		circle.setOrigin({ circle.getRadius(), circle.getRadius() });
 		circle.setPosition(pos);
 	}
 
-	void onUpdate(sf::RenderWindow& window) override
+	void onUpdate(EngineContext& context) override
 	{
 		// Nucleus has no movement or update logic
 	}
 
-	void onRender(sf::RenderWindow& window) override
+	void onRender(EngineContext& context) override
 	{
-		// Draws nucleus to the window
-		window.draw(circle);
+		context.window.draw(circle);
 	}
 };
-
-// Function to find mouse position in comparison to window
+// Self explanatory
 sf::Vector2f mousePos(sf::RenderWindow& window)
 {
 	// Get mouse position in pixel coordinates
@@ -96,31 +122,31 @@ sf::Vector2f mousePos(sf::RenderWindow& window)
 	// Convert to floating-point vector for SFML usage
 	return sf::Vector2f(static_cast<float>(pixelPos.x), static_cast<float>(pixelPos.y));
 }
-
-// Controls when Neutrons and Nuclei are created
+// Creates class which controls when particles are spawned in
 class ParticleSpawner : public Behaviour
 {
 private:
 
 public:
-	void onRender(sf::RenderWindow& window) override
+
+	void onRender(EngineContext& context) override
 	{
-		// Nothing rendered for spawner (it’s invisible)
 	}
-
-	void onUpdate(sf::RenderWindow& window) override
+	// Creates objects when correct buttons are pressed
+	void onUpdate(EngineContext& context) override
 	{
-		// If left mouse button pressed, create a Neutron at mouse position
-		if (Input::ButtonPressed(sf::Mouse::Button::Left))
+		if (Input::MouseHeld(sf::Mouse::Button::Left))
 		{
-			std::unique_ptr<Neutron> neutron = std::make_unique<Neutron>(mousePos(window));
-			Behaviour::CreateObject(std::move(neutron));
+			for (int i = 0; i < 1; i++)
+			{
+				std::unique_ptr<Neutron> neutron = std::make_unique<Neutron>(mousePos(context.window));
+				Behaviour::CreateObject(std::move(neutron));
+			}
+				
 		}
-
-		// If right mouse button pressed, create a Nucleus at mouse position
-		if (Input::ButtonPressed(sf::Mouse::Button::Right))
+		if (Input::MouseHeld(sf::Mouse::Button::Right))
 		{
-			std::unique_ptr<Nucleus> nucleus = std::make_unique<Nucleus>(mousePos(window));
+			std::unique_ptr<Nucleus> nucleus = std::make_unique<Nucleus>(mousePos(context.window));
 			Behaviour::CreateObject(std::move(nucleus));
 		}
 	}
@@ -130,20 +156,18 @@ int main()
 {
 	// Creates SFML window using the desktop resolution
 	sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "SFML Window", sf::State::Windowed);
-
-	// Creates "spawner", which is a unique pointer to the ParticleSpawner class
+	EngineContext context(window);
 	std::unique_ptr<ParticleSpawner> spawner = std::make_unique<ParticleSpawner>();
 
 	// Calls CreateObject, adding the spawner to the Behaviour system
 	Behaviour::CreateObject(std::move(spawner));
+	sf::Clock clock;
 
 	// Main application loop
 	while (window.isOpen())
 	{
-		// Renders all active Behaviours
-		Behaviour::RenderAll(window);
-
-		// Updates all Behaviours and processes input/events
-		Behaviour::UpdateAll(window);
+		context.deltaTime = clock.restart().asSeconds();
+		Behaviour::RenderAll(context);
+		Behaviour::UpdateAll(context);
 	}
 }

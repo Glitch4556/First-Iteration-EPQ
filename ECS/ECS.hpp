@@ -5,72 +5,71 @@
 #include <vector>
 #include <optional>
 
-// Base class for all components that can be attached to Behaviours
+
+struct EngineContext
+{
+	sf::RenderWindow& window;
+	float deltaTime;
+
+	EngineContext(sf::RenderWindow& _window)
+		: window(_window), deltaTime(0)
+	{
+	}
+};
+
+// Component class which requires override of onUpdate
+// This is to prevent having to loop through updating all objects
 class Component
 {
 public:
-    virtual ~Component() = default;
-
-    // Called every frame for logic updates specific to this component
-    virtual void onUpdate() {}
-
-    // Determines whether this component should currently be active
-    bool active = true;
+	virtual void onUpdate(EngineContext& context) = 0;
 };
 
 // Base class for all entities that appear in the scene (e.g., game objects)
 class Behaviour
 {
-public:
-    // Holds all active Behaviour objects currently in the scene
-    static std::vector<std::unique_ptr<Behaviour>> objects;
-
-    virtual ~Behaviour() = default;
-
-    // Called once per frame to update this object
-    virtual void onUpdate(sf::RenderWindow& window) {}
-
-    // Called once per frame to render this object
-    virtual void onRender(sf::RenderWindow& window) {}
-
-    // Adds a component of type T to this Behaviour and returns a pointer to it
-    template<typename T, typename... Args>
-    T* AddComponent(Args&&... args)
-    {
-        // Create the new component and store it in the components list
-        std::unique_ptr<T> comp = std::make_unique<T>(std::forward<Args>(args)...);
-        T* ptr = comp.get();
-        components.push_back(std::move(comp));
-        return ptr;
-    }
-
-    // Queues a new Behaviour object for creation (added at the end of the frame)
-    static void CreateObject(std::unique_ptr<Behaviour> obj);
-
-    // Renders all active objects in the scene
-    static void RenderAll(sf::RenderWindow& window);
-
-    // Updates all active objects and handles window events
-    static void UpdateAll(sf::RenderWindow& window);
-
-    // Calls onUpdate for all attached components, then for the Behaviour itself
-    void Update(sf::RenderWindow& window)
-    {
-        for (auto& c : components)
-        {
-            if (c->active)
-                c->onUpdate();
-        }
-        onUpdate(window);
-    }
-
-    // Calls onRender for this Behaviour
-    void Render(sf::RenderWindow& window)
-    {
-        onRender(window);
-    }
 
 private:
-    // List of components attached to this Behaviour
-    std::vector<std::unique_ptr<Component>> components;
+	// Initalises objects and components vectors
+	static std::vector<std::unique_ptr<Behaviour>> objects;
+	std::vector<std::unique_ptr<Component>> components;
+
+protected:
+	// Requires onUpdate and onRender to be defined by classes which inherit behaviour
+	virtual void onUpdate(EngineContext&) = 0;
+	virtual void onRender(EngineContext&) = 0;
+	// Runs onUpdate on all components
+	void Update(EngineContext& context)
+	{
+		onUpdate(context);
+		for (auto& component : Behaviour::components)
+		{
+			component->onUpdate(context);
+		}
+	}
+	// Renders all changes
+	void Render(EngineContext& context)
+	{
+		onRender(context);
+	}
+
+public:
+	// Weird cpp compiler stuff
+	static void CreateObject(std::unique_ptr<Behaviour> obj);
+	static void RenderAll(EngineContext& context);
+	static void UpdateAll(EngineContext& context);
+
+	template<typename T>
+	T* AddComponent()
+	{
+		// Creates unqiue ptr of template type
+		std::unique_ptr<T> component = std::make_unique<T>();
+		// Variable "raw" which is of template type. Gets raw pointer from within component.
+		T* raw = component.get();
+
+		// Moves the component to components vector, allowing it to be updated
+		components.push_back(std::move(component));
+		// Returns raw, which is a pointer to the template type. Allows the modification of components.
+		return raw;
+	}
 };

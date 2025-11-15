@@ -10,32 +10,25 @@ void Behaviour::CreateObject(std::unique_ptr<Behaviour> obj)
     // Move the unique pointer into the queue to be added next frame
     objQueue.push_back(std::move(obj));
 }
-
-// Handles rendering for all Behaviour objects in the scene
-void Behaviour::RenderAll(sf::RenderWindow& window)
+// Defines RenderAll function, renders all updated objects after clearing window
+void Behaviour::RenderAll(EngineContext& context)
 {
-    // Clear the screen before drawing anything
-    window.clear(sf::Color::Black);
-
-    // Render each active object
+    context.window.clear(sf::Color::Black);
 	for (auto& object : Behaviour::objects)
 	{
-		object->Render(window);
+		object->Render(context);
 	}
-
-    // Display everything drawn this frame
-	window.display();
+	context.window.display();
 }
 
-// Handles event polling and updates all Behaviour objects
-void Behaviour::UpdateAll(sf::RenderWindow& window)
+void Behaviour::UpdateAll(EngineContext& context)
 {
-    // Poll for all window events (close, key presses, mouse input, etc.)
-	while (const std::optional event = window.pollEvent())
+	// Closes window when escape key or X is pressed
+	while (const std::optional event = context.window.pollEvent())
 	{
         // Close window if the "X" button is clicked
 		if (event->is<sf::Event::Closed>()) {
-			window.close();
+			context.window.close();
 		}
 
         // Check for key press events
@@ -43,28 +36,17 @@ void Behaviour::UpdateAll(sf::RenderWindow& window)
 		{
             // Close window when ESC key is pressed
 			if (keyPressed->scancode == sf::Keyboard::Scancode::Escape)
-				window.close();
-		}
-
-        // Check for mouse button presses
-		else if (const auto* mousePressed = event->getIf<sf::Event::MouseButtonPressed>())
-		{
-            // Detect if left mouse button is pressed (currently unused)
-			if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
-			{
-				// Placeholder for mouse interaction logic
-			}
+				context.window.close();
 		}
 	}
 
-    // Update all Behaviour objects currently in the scene
+	// Calls update function, running onUpdate function on all objects
 	for (auto& object : Behaviour::objects)
 	{
-		object->Update(window);
+		object->Update(context);
 	}
 
-	// Move any newly created objects from the queue into
-    // the active object list, so they appear next frame
+	// Move any newly created objects from the queue into the active object list, so they appear next frame
 	std::move(objQueue.begin(), objQueue.end(), std::back_inserter(Behaviour::objects));
 
 	// Clear the queue after transferring the objects

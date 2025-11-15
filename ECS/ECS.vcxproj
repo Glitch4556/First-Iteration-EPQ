@@ -24,6 +24,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ECS.cpp" />
+    <ClCompile Include="input.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
