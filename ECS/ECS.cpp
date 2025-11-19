@@ -1,8 +1,8 @@
 #include "../ECS/ECS.hpp"
 
 // Creates object list and object queue 
-std::vector<std::unique_ptr<Behaviour>> Behaviour::objects;   // Holds all active Behaviour objects currently in the scene
-static std::vector<std::unique_ptr<Behaviour>> objQueue;      // Temporary storage for new objects to be added after updates
+std::vector<std::unique_ptr<Behaviour>> Behaviour::objects;   
+static std::vector<std::unique_ptr<Behaviour>> objQueue;      
 
 // Adds a new object to the creation queue
 void Behaviour::CreateObject(std::unique_ptr<Behaviour> obj)

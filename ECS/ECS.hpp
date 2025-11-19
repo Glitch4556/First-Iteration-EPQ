@@ -5,7 +5,6 @@
 #include <vector>
 #include <optional>
 
-
 struct EngineContext
 {
 	sf::RenderWindow& window;
@@ -23,6 +22,7 @@ class Component
 {
 public:
 	virtual void onUpdate(EngineContext& context) = 0;
+	virtual void onCreation() {}
 };
 
 // Base class for all entities that appear in the scene (e.g., game objects)
@@ -64,8 +64,11 @@ public:
 	{
 		// Creates unqiue ptr of template type
 		std::unique_ptr<T> component = std::make_unique<T>();
+
 		// Variable "raw" which is of template type. Gets raw pointer from within component.
 		T* raw = component.get();
+
+		component->onCreation();
 
 		// Moves the component to components vector, allowing it to be updated
 		components.push_back(std::move(component));

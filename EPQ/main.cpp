@@ -4,7 +4,7 @@
 #include "../ECS/input.hpp"
 #include  <random>
 
-// Creates movement class
+
 float randFloat(int range1, int range2)
 {
 	std::random_device rd;   // seeding
@@ -41,12 +41,51 @@ public:
 	}
 };
 
-class CircleCollsion : public Behaviour
+class CircleCollision : public Component
 {
 private:
-public:
+	static std::vector<CircleCollision*> objects;
 
+public:
+	sf::CircleShape* collider;
+	Movement* movement;
+
+	void onCreation() override
+	{
+		objects.push_back(this);
+	}
+
+	static void checkCollision(EngineContext& context) 
+	{
+		for (int i = 0; i < objects.size(); i++)
+		{
+			CircleCollision* currentObject = objects[i];
+
+			for (int k = i; k < objects.size(); k++)
+			{
+				CircleCollision* comparisonObject = objects[k];
+				float sumOfRadii = currentObject->collider->getRadius() + comparisonObject->collider->getRadius();
+				sf::Vector2f centre1 = currentObject->collider->getPosition();
+				sf::Vector2f centre2 = comparisonObject->collider->getPosition();
+				float distance = sqrt((centre2.x - centre1.x)*(centre2.x - centre1.x) + (centre2.y - centre1.y) * (centre2.y - centre1.y));
+
+				if (distance <= sumOfRadii)
+				{
+					currentObject->movement->velocity = -currentObject->movement->velocity;
+					currentObject->movement->position = currentObject->movement->position + (currentObject->movement->velocity * context.deltaTime * 3.0f);
+					comparisonObject->movement->velocity = -comparisonObject->movement->velocity;
+					comparisonObject->movement->position = comparisonObject->movement->position + (comparisonObject->movement->velocity * context.deltaTime * 3.0f);
+				}
+			}
+		}
+	}
+
+
+	void onUpdate(EngineContext& context)
+	{
+	}
 };
+std::vector<CircleCollision*> CircleCollision::objects;
 
 class Neutron : public Behaviour
 {
@@ -54,6 +93,7 @@ private:
 	// Initalises circle variable and component variable 
 	sf::CircleShape circle;
 	Movement* component;
+	CircleCollision* component2;
 
 public:
 	// Neutron constructor which creates the neutron object
@@ -65,8 +105,11 @@ public:
 		circle.setOrigin({ circle.getRadius(), circle.getRadius() });
 		circle.setPosition(pos);
 
-		// Adds and configures a Movement component
+		// Adds and configures a Movement and collisioncomponent
 		component = AddComponent<Movement>();
+		component2 = AddComponent<CircleCollision>();
+		component2->collider = &circle;
+		component2->movement = component;
 		// Sets velocity and position components
 		sf::Vector2f randVector;
 		randVector.x = randFloat(-500, 500);
@@ -142,7 +185,6 @@ public:
 				std::unique_ptr<Neutron> neutron = std::make_unique<Neutron>(mousePos(context.window));
 				Behaviour::CreateObject(std::move(neutron));
 			}
-				
 		}
 		if (Input::MouseHeld(sf::Mouse::Button::Right))
 		{
@@ -156,6 +198,7 @@ int main()
 {
 	// Creates SFML window using the desktop resolution
 	sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "SFML Window", sf::State::Windowed);
+	window.setVerticalSyncEnabled(true);
 	EngineContext context(window);
 	std::unique_ptr<ParticleSpawner> spawner = std::make_unique<ParticleSpawner>();
 
@@ -169,5 +212,6 @@ int main()
 		context.deltaTime = clock.restart().asSeconds();
 		Behaviour::RenderAll(context);
 		Behaviour::UpdateAll(context);
+		CircleCollision::checkCollision(context);
 	}
 }
