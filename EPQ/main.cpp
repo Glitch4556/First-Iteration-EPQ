@@ -4,7 +4,6 @@
 #include "../ECS/input.hpp"
 #include  <random>
 
-
 float randFloat(int range1, int range2)
 {
 	std::random_device rd;   // seeding
@@ -13,6 +12,7 @@ float randFloat(int range1, int range2)
 	float randFloat = dist(gen);
 	return randFloat;
 }
+
 class Movement : public Component
 {
 public:
@@ -67,19 +67,45 @@ public:
 				float sumOfRadii = currentObject->collider->getRadius() + comparisonObject->collider->getRadius();
 				sf::Vector2f centre1 = currentObject->collider->getPosition();
 				sf::Vector2f centre2 = comparisonObject->collider->getPosition();
-				float distance = sqrt((centre2.x - centre1.x)*(centre2.x - centre1.x) + (centre2.y - centre1.y) * (centre2.y - centre1.y));
+				float distance = sqrt((centre2.x - centre1.x) * (centre2.x - centre1.x) + (centre2.y - centre1.y) * (centre2.y - centre1.y));
 
 				if (distance <= sumOfRadii)
 				{
-					currentObject->movement->velocity = -currentObject->movement->velocity;
-					currentObject->movement->position = currentObject->movement->position + (currentObject->movement->velocity * context.deltaTime * 3.0f);
-					comparisonObject->movement->velocity = -comparisonObject->movement->velocity;
-					comparisonObject->movement->position = comparisonObject->movement->position + (comparisonObject->movement->velocity * context.deltaTime * 3.0f);
+					handleCollision(context, currentObject, comparisonObject);
 				}
 			}
 		}
 	}
 
+	static void handleCollision(EngineContext& context, CircleCollision* object1, CircleCollision* object2)
+	{
+		float radius1 = object1->collider->getRadius();
+		float radius2 = object2->collider->getRadius();
+		sf::Vector2f centre1 = object1->collider->getGeometricCenter();
+		sf::Vector2f centre2 = object2->collider->getGeometricCenter();
+		sf::Vector2f normal;
+
+		if (centre2 != centre1)
+		{
+			normal = (centre2 - centre1).normalized();
+		}
+		else
+		{
+			normal = { 1,0 };
+		}
+
+		sf::Vector2f tangent(-normal.y, normal.x);
+		float distance = sqrt((centre2.x - centre1.x) * (centre2.x - centre1.x) + (centre2.y - centre1.y) * (centre2.y - centre1.y));
+
+		// Separate circles if overlapping
+		float overlap = radius1 + radius2 - distance;
+		if (overlap > 0)
+		{
+			centre1 -= normal * (overlap * 0.5f);
+			centre2 += normal * (overlap * 0.5f);
+		}
+
+	}
 
 	void onUpdate(EngineContext& context)
 	{
