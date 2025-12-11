@@ -13,6 +13,17 @@ float randFloat(int range1, int range2)
 	return randFloat;
 }
 
+float modulus(sf::Vector2f vector1, sf::Vector2f vector2)
+{
+	return sqrt((vector2.x - vector1.x) * (vector2.x - vector1.x) + (vector2.y - vector1.y) * (vector2.y - vector1.y));
+}
+
+sf::Vector2f operator*(float scalar, const sf::Vector2f& vector)
+{
+	return sf::Vector2f(scalar * vector.x, scalar * vector.y);
+}
+
+
 class Movement : public Component
 {
 public:
@@ -61,13 +72,14 @@ public:
 		{
 			CircleCollision* currentObject = objects[i];
 
-			for (int k = i; k < objects.size(); k++)
+			for (int k = i+1; k < objects.size(); k++)
 			{
 				CircleCollision* comparisonObject = objects[k];
 				float sumOfRadii = currentObject->collider->getRadius() + comparisonObject->collider->getRadius();
 				sf::Vector2f centre1 = currentObject->collider->getPosition();
 				sf::Vector2f centre2 = comparisonObject->collider->getPosition();
-				float distance = sqrt((centre2.x - centre1.x) * (centre2.x - centre1.x) + (centre2.y - centre1.y) * (centre2.y - centre1.y));
+
+				float distance = modulus(centre1, centre2);
 
 				if (distance <= sumOfRadii)
 				{
@@ -81,8 +93,8 @@ public:
 	{
 		float radius1 = object1->collider->getRadius();
 		float radius2 = object2->collider->getRadius();
-		sf::Vector2f centre1 = object1->collider->getGeometricCenter();
-		sf::Vector2f centre2 = object2->collider->getGeometricCenter();
+		sf::Vector2f centre1 = object1->collider->getPosition();
+		sf::Vector2f centre2 = object2->collider->getPosition();
 		sf::Vector2f normal;
 
 		if (centre2 != centre1)
@@ -95,22 +107,48 @@ public:
 		}
 
 		sf::Vector2f tangent(-normal.y, normal.x);
-		float distance = sqrt((centre2.x - centre1.x) * (centre2.x - centre1.x) + (centre2.y - centre1.y) * (centre2.y - centre1.y));
+		float distance = modulus(centre1, centre2);
 
-		// Separate circles if overlapping
+		// Separate particles if overlapping
 		float overlap = radius1 + radius2 - distance;
+
 		if (overlap > 0)
 		{
-			centre1 -= normal * (overlap * 0.5f);
-			centre2 += normal * (overlap * 0.5f);
+			sf::Vector2f correction = normal * (overlap * 0.5f);
+
+			object1->collider->setPosition(object1->collider->getPosition() - correction);
+
+			object2->collider->setPosition(object2->collider->getPosition() + correction);
+
 		}
 
+		const float restitution = 0.99999f;
+		float mass1 = 1.0;
+		float mass2 = 1.0;
+
+		float massFraction1 = (2 * mass2) / (mass1 + mass2);
+		float massFraction2 = (2 * mass1) / (mass1 + mass2);
+		sf::Vector2f velocity1 = object1->movement->velocity;
+		sf::Vector2f velocity2 = object2->movement->velocity;
+
+		sf::Vector2f delta = centre1 - centre2;
+		float distSq = delta.x * delta.x + delta.y * delta.y; 
+
+		sf::Vector2f newVelocity1 = velocity1 - (massFraction1 * ((velocity1 - velocity2).dot(centre1 - centre2) /
+			distSq) * normal);
+
+		sf::Vector2f newVelocity2 = velocity2 - (massFraction2 * ((velocity2 - velocity1).dot(centre2 - centre1) /
+			distSq) * -normal);
+
+		object1->movement->velocity = newVelocity1;
+		object2->movement->velocity = newVelocity2;
 	}
 
 	void onUpdate(EngineContext& context)
 	{
 	}
 };
+
 std::vector<CircleCollision*> CircleCollision::objects;
 
 class Neutron : public Behaviour
@@ -136,10 +174,11 @@ public:
 		component2 = AddComponent<CircleCollision>();
 		component2->collider = &circle;
 		component2->movement = component;
+
 		// Sets velocity and position components
 		sf::Vector2f randVector;
-		randVector.x = randFloat(-500, 500);
-		randVector.y = randFloat(-500, 500);
+		randVector.x = randFloat(-100, 100);
+		randVector.y = randFloat(-100, 100);
 		component->velocity = randVector;
 		component->position = pos;
 	}
@@ -236,8 +275,8 @@ int main()
 	while (window.isOpen())
 	{
 		context.deltaTime = clock.restart().asSeconds();
-		Behaviour::RenderAll(context);
 		Behaviour::UpdateAll(context);
+		Behaviour::RenderAll(context);
 		CircleCollision::checkCollision(context);
 	}
 }
